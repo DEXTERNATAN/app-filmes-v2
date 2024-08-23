@@ -54,12 +54,10 @@ export default function Details() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity>
-          {/* <CaretLeft color="#fff" size={32} weight="thin" /> */}
           <Ionicons  color="#fff" size={32} name="chevron-back"  />
         </TouchableOpacity>
         <Text style={styles.headerText}>Detalhes</Text>
         <TouchableOpacity>
-          {/* <BookmarkSimple color="#fff" size={32} weight="thin" /> */}
           <Ionicons  color="#fff" size={32} name="bookmark"  />
         </TouchableOpacity>
       </View>
