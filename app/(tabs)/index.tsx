@@ -1,70 +1,183 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {  Dimensions, StyleSheet } from 'react-native';
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { Link } from 'expo-router';
+
+import { CardMovies } from "../../components/CardMovies";
+import { api } from "../../services/api";
+import { useNavigation } from "@react-navigation/native";
+import { TabBarIcon } from '@/components/navigation/TabBarIcon';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
+
+interface Movie {
+  id: number;
+  title: string;
+  poster_path: string;
+  overview: string;
+}
+
+const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
+  const [discoveryMovies, setDiscoveryMovies] = useState<Movie[]>([]);
+  const [searchResultMovies, setSearchResultMovies] = useState<Movie[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [noResult, setNoResult] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    loadMoreData();
+  }, []);
+
+  const loadMoreData = async () => {
+    setLoading(true);
+    const response = await api.get("/movie/popular", {
+      params: {
+        page,
+      },
+    });
+    setDiscoveryMovies([...discoveryMovies, ...response.data.results]);
+    setPage(page + 1);
+    setLoading(false);
+  };
+
+  const searchMovies = async (query: string) => {
+    setLoading(true);
+    const response = await api.get("/search/movie", {
+      params: {
+        query,
+      },
+    });
+
+    if (response.data.results.length === 0) {
+      setNoResult(true);
+      setLoading(false);
+      setSearchResultMovies([]);
+    } else {
+      setNoResult(false);
+      setSearchResultMovies(response.data.results);
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (text: string) => {
+    setSearch(text);
+    if (text.length > 2) {
+      searchMovies(text);
+    } else {
+      setSearchResultMovies([]);
+    }
+  };
+
+  //criar função de renderMovieItem
+  const navigation = useNavigation();
+
+  const renderMovieItem = ({ item }: { item: Movie }) => (
+    // <Link href="/(tabs)/details">
+    <CardMovies
+      data={item}
+      // onPress={() => navigation.navigate("details", { movieId: item.id })}
+      // onPress={() => router.push(`/(tabs)/details?${ movieId: item.id }`)}
+      onPress={() => router.push(`/(tabs)/details?movieId=${item.id}`)}
+    />
+    // </Link>
+  );
+
+  const movieData = search.length > 2 ? searchResultMovies : discoveryMovies;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Oque você quer assistir hoje?</Text>
+
+        <View style={styles.containerInput}>
+          <TextInput
+            placeholderTextColor="#FFF"
+            placeholder="Buscar"
+            style={styles.input}
+            value={search}
+            onChangeText={handleSearch}
+          />
+          {/* <MagnifyingGlass color="#FFf" size={25} weight="light" /> */}
+          <Ionicons  color="#fff" size={25} name="search"  />
+        </View>
+
+        {noResult && (
+          <Text style={styles.noResult}>
+            Nenhum filme encontrado para "{search}"
+          </Text>
+        )}
+      </View>
+      <View style={styles.flatList}>
+        <FlatList
+          data={movieData}
+          numColumns={3}
+          renderItem={renderMovieItem}
+          showsVerticalScrollIndicator={false}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{
+            padding: 35,
+            paddingBottom: 100,
+          }}
+          onEndReached={() => loadMoreData()}
+          onEndReachedThreshold={0.5}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {loading && <ActivityIndicator size={50} color="#0296e5" />}
+      </View>
+    </View>
   );
 }
 
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    width: width,
+    backgroundColor: "#242A32",
+    alignItems: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  noResult: {
+    color: "#fff",
+    fontSize: 18,
+    textAlign: "center",
+    marginVertical: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  flatList: {
+    width: width,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  header: {
+    padding: 25,
+  },
+  headerText: {
+    marginTop: 30,
+    fontSize: 24,
+    lineHeight: 45,
+    color: "#FFF",
+  },
+  containerInput: {
+    backgroundColor: "#67686D",
+    height: 42,
+    padding: 10,
+    borderRadius: 16,
+    marginTop: 20,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
+  },
+  input: {
+    color: "#FFF",
+    width: "80%",
+    paddingLeft: 15,
   },
 });
